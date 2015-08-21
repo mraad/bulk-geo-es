@@ -1,0 +1,13 @@
+cluster.name: elasticsearch
+
+index.number_of_shards: 1
+
+index.number_of_replicas: 0
+
+network.bind_host: dev
+
+network.publish_host: dev
+
+cluster.routing.allocation.disk.threshold_enabled: false
+
+action.disable_delete_all_indices: true

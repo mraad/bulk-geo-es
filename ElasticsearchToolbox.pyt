@@ -80,18 +80,6 @@ class BulkTool(object):
     def updateMessages(self, parameters):
         return
 
-    '''
-    def convertPolygon2MultipolyonStr(self, shape):
-        return eval(
-            str(shape).replace("Polygon", "MultiPolygon").
-                replace('(', '[').
-                replace(')', ']').
-                replace("[[[", "[[[[").
-                replace("]],", "]]],").
-                replace(", [[", ", [[[").
-                replace("]]]}", "]]]]}"))
-    '''
-
     def convertPolygon(self, shape):
         if shape["type"] == "Polygon":
             shape["coordinates"] = [[coords] for coords in shape["coordinates"]]
@@ -124,12 +112,15 @@ class BulkTool(object):
             }
         }
         for field in description.fields:
+            # arcpy.AddMessage(field.name + " " + field.type)
             if field.name.lower() not in (
-                    'shape_length', 'shape_area', 'shape.len', 'shape.length', 'shape_len',
-                    'shape.area') and field.name.find(".") == -1 and field.type in (
-                    'String', 'Integer', 'Double', 'Float', 'Date'):
+                    'shape_len', 'shape_length', 'shape_area',
+                    'shape.len', 'shape.length', 'shape.area'
+            ) and field.name.find(".") == -1 and field.type in (
+                    'String', 'SmallInteger', 'Integer', 'Float', 'Double', 'Date'):
                 field_list.append(field.name)
-                field_dict[field.name] = {"type": field.type.lower()}
+                field_type = "short" if field.type == 'SmallInteger' else field.type.lower()
+                field_dict[field.name] = {"type": field_type}
 
         index_name, type_name = parameters[2].valueAsText.split('/')
 
@@ -185,7 +176,6 @@ class BulkTool(object):
                         arcpy.AddWarning(res)
                     batch_count = 0
                     body = []
-                    # break
         if batch_count > 0:
             res = es.bulk(index=index_name, doc_type=type_name, body=body, refresh=bulk_refresh)
             if res["errors"]:
@@ -231,7 +221,7 @@ class BaseTool(object):
             name="outputFC",
             displayName="outputFC",
             direction="Output",
-            datatype="DEFeatureClass",
+            datatype="Feature Layer",
             parameterType="Derived")
         # paramFC.symbology = "C:/symbology.lyr"
         return paramFC
@@ -252,7 +242,6 @@ class GeoDistanceTool(BaseTool):
         self.label = "Geo Distance"
         self.description = "Perform geo spatial radius search from a center point on an ES index/mapping"
         self.canRunInBackground = False
-        self.es = Elasticsearch(hosts="192.168.99.100")
 
     def getParameterInfo(self):
         field_mapping = arcpy.Parameter(displayName="Fields",
@@ -326,8 +315,6 @@ class GeoDistanceTool(BaseTool):
             center_lat = parameters[7].value
             shape_type = parameters[8].value
 
-            spref = arcpy.SpatialReference(4326)
-
             # fc = os.path.join(arcpy.env.scratchGDB, name)
             # ws = os.path.dirname(fc)
 
@@ -337,6 +324,7 @@ class GeoDistanceTool(BaseTool):
 
             source = ['shape']
             fields = ['SHAPE@']
+            spref = arcpy.SpatialReference(4326)
             arcpy.management.CreateFeatureclass(ws, name, shape_type, spatial_reference=spref)
             for field in fms.fields:
                 arcpy.management.AddField(fc, field.name, field.type, field.precision, field.scale, field.length)
